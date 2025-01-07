@@ -17,6 +17,10 @@ interface RealtimeEvent {
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [items, setItems] = useState<ItemType[]>([]);
+  const [lastItem, setLastItem] = useState<ItemType>()
+  const [translations, setTranslations] = useState<
+    { source: string; dest: string }[]
+  >([]);
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
@@ -27,6 +31,7 @@ function App() {
     })
   );
   const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
+  const mediaElement = useRef<HTMLMediaElement | null>(null)
 
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
@@ -38,14 +43,13 @@ function App() {
     setItems(client.conversation.getItems());
 
     // Connect to microphone
-    await wavRecorder.begin();
+    await wavRecorder.begin(mediaElement.current);
     // Connect to realtime API
     await client.connect();
     client.sendUserMessageContent([
       {
         type: `input_text`,
         text: `Hello!`,
-        // text: `For testing purposes, I want you to list ten car brands. Number each item, e.g. "one (or whatever number you are one): the item name".`
       },
     ]);
    
@@ -66,17 +70,24 @@ function App() {
     await wavRecorder.end();
   }, []);
 
-  useEffect(() => {
-    console.log('items>', items)
-  }, [items])
+  const handlePlay = () => {
+    mediaElement.current?.play()
+  }
+
+  // useEffect(() => {
+  //   console.log('items>', items)
+  // }, [items])
 
   useEffect(() => {
+    // Set audio element
+    mediaElement.current = document.getElementById('video') as HTMLMediaElement | null;
+
     // Get refs
     const client = clientRef.current;
 
     // Set instructions
     client.updateSession({
-      instructions: instructions({ label: 'Chinese', text: '中文' }),
+      instructions: instructions({ label: '🇨🇳 Chinese', text: '中文' }),
     });
     // Set transcription, otherwise we don't get user transcriptions back
     // client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
@@ -119,7 +130,20 @@ function App() {
 
       if (item.role === 'assistant' && item.formatted.text) {
         try {
-          console.log('item.formatted.text', item.formatted.text)
+          // check if ID is already in translations
+          if (item.id !== lastItem?.id) {
+            // parse the text into JSON-compatible format
+            const text = new String(item.formatted.text)
+              .replaceAll('```json', '')
+              .replaceAll('```', '')
+              // replace all newlines with spaces
+              .replaceAll('\n', ' ');
+            const translationData = JSON.parse(text);
+            setLastItem(item)
+            if (translationData.source && translationData.dest) {
+              setTranslations((prev) => [...prev, translationData]);
+            }
+          }
         } catch (error) {
           console.error('Failed to parse translation data:', error);
         }
@@ -142,6 +166,17 @@ function App() {
       >
         { isConnected ? 'disconnect' : 'connect' }
       </button>
+      <video id="video" controls style={{width: 100}}>
+        <source src="/example2.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      <button onClick={handlePlay}>Play</button>
+      {translations.map((translation, index) => (
+        <div key={index} className="translation-row">
+          <div>{translation.source}</div>
+          <div>{translation.dest}</div>
+        </div>
+      ))}
     </div>
   );
 }

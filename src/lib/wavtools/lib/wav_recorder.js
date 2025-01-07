@@ -293,36 +293,25 @@ export class WavRecorder {
   }
 
   /**
-   * Begins a recording session and requests microphone permissions if not already granted
-   * Microphone recording indicator will appear on browser tab but status will be "paused"
-   * @param {string} [deviceId] if no device provided, default device will be used
+   * Begins a recording session
+   * @param {HTMLMediaElement} [audioEle]
    * @returns {Promise<true>}
    */
-  async begin(deviceId) {
+  async begin(mediaEle) {
     if (this.processor) {
       throw new Error(
         `Already connected: please call .end() to start a new session`,
       );
     }
-
-    if (
-      !navigator.mediaDevices ||
-      !('getUserMedia' in navigator.mediaDevices)
-    ) {
-      throw new Error('Could not request user media');
-    }
-    try {
-      const config = { audio: true };
-      if (deviceId) {
-        config.audio = { deviceId: { exact: deviceId } };
-      }
-      this.stream = await navigator.mediaDevices.getUserMedia(config);
-    } catch (err) {
-      throw new Error('Could not start media stream');
+    if (!mediaEle) {
+      throw new Error('Target audi')
     }
 
     const context = new AudioContext({ sampleRate: this.sampleRate });
-    const source = context.createMediaStreamSource(this.stream);
+    // const source = context.createMediaStreamSource(this.stream);
+    const source = context.createMediaElementSource(mediaEle)
+    source.connect(context.destination)
+    context.resume()
     // Load and execute the module script.
     try {
       await context.audioWorklet.addModule(this.scriptSrc);

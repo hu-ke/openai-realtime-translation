@@ -14,11 +14,6 @@ Personality:
 - None
 
 Format:
-\`\`\`
-{
-  "source": "translated text",
-  "dest": ${text}
-}
-\`\`\`
+- Return json format with two fields: 1.'source' field represents translated text 2.'dest' field represents ${text}
 `;
 };
